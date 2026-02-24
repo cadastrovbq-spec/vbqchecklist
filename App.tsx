@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Sector, ChecklistType, TaskStatus, ChecklistTask, DailyData, ReportEntry } from './types';
-import { INITIAL_SECTORS } from './constants';
+import { INITIAL_SECTORS, getInitialSectors } from './constants';
 import { supabase } from './supabaseClient';
 import SectorCard from './components/SectorCard';
 import ChecklistItem from './components/ChecklistItem';
@@ -185,7 +185,7 @@ const App: React.FC = () => {
   };
 
   const sectors = useMemo(() => {
-    return dailyHistory[currentDate] || INITIAL_SECTORS.map(s => ({ ...s }));
+    return dailyHistory[currentDate] || getInitialSectors();
   }, [dailyHistory, currentDate]);
 
   // Carregamento inicial do Supabase
@@ -204,7 +204,7 @@ const App: React.FC = () => {
 
           dbChecklists.forEach(cl => {
             const date = cl.date;
-            if (!history[date]) history[date] = INITIAL_SECTORS.map(s => ({ ...s }));
+            if (!history[date]) history[date] = getInitialSectors();
 
             const sectorIndex = history[date].findIndex(s => s.id === cl.sector_id);
             if (sectorIndex !== -1) {
@@ -319,8 +319,8 @@ const App: React.FC = () => {
             const openingOutdated = oldPrefix && existing.tasks[ChecklistType.OPENING].some(t => t.id.startsWith(oldPrefix));
             const closingEmpty = existing.tasks[ChecklistType.CLOSING].length === 0 && template.tasks[ChecklistType.CLOSING].length > 0;
 
-            // Caso especial para COZINHA: se tiver menos que 30 tarefas (antigo tinha 3), forçar atualização
-            const kitchenOutdated = sectorId === 'kitchen' && existing.tasks[ChecklistType.OPENING].length < 30;
+            // Caso especial para COZINHA: se for a versão antiga com muito poucas tarefas (ex: 3), forçar atualização
+            const kitchenOutdated = sectorId === 'kitchen' && existing.tasks[ChecklistType.OPENING].length <= 3;
 
             if (openingOutdated || closingEmpty || kitchenOutdated) {
               list = list.map((s: Sector) =>
@@ -357,7 +357,7 @@ const App: React.FC = () => {
       return changed ? updated : prev;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loading]); // Rodar quando o carregamento inicial terminar
 
 
 
@@ -470,16 +470,52 @@ const App: React.FC = () => {
     setIsAddingSettingsTask(false);
   };
 
-  const handleDeleteSettingsTask = (taskId: string) => {
+  const handleDeleteSettingsTask = async (taskId: string) => {
     if (!settingsSectorId) return;
     updateHistory(sectors.map(s => s.id !== settingsSectorId ? s : { ...s, tasks: { ...s.tasks, [settingsType]: s.tasks[settingsType].filter(t => t.id !== taskId) } }));
+
+    // Sincronizar exclusão com Supabase
+    try {
+      const { data: cl } = await supabase
+        .from('checklists')
+        .select('id')
+        .match({ date: currentDate, sector_id: settingsSectorId, type: settingsType })
+        .single();
+
+      if (cl) {
+        await supabase.from('checklist_tasks').delete().match({ checklist_id: cl.id, task_id: taskId });
+      }
+    } catch (err) {
+      console.error("Erro ao deletar tarefa no Supabase:", err);
+    }
   };
 
-  const handleSaveEditTask = () => {
+  const handleSaveEditTask = async () => {
     if (!settingsSectorId || !editingTaskId || !editingTaskData.title.trim()) return;
-    updateHistory(sectors.map(s => s.id !== settingsSectorId ? s : {
+    const updatedHistory = sectors.map(s => s.id !== settingsSectorId ? s : {
       ...s, tasks: { ...s.tasks, [settingsType]: s.tasks[settingsType].map(t => t.id === editingTaskId ? { ...t, ...editingTaskData } : t) }
-    }));
+    });
+    updateHistory(updatedHistory);
+
+    // Sincronizar edição com Supabase
+    try {
+      const { data: cl } = await supabase
+        .from('checklists')
+        .select('id')
+        .match({ date: currentDate, sector_id: settingsSectorId, type: settingsType })
+        .single();
+
+      if (cl) {
+        await supabase.from('checklist_tasks').update({
+          title: editingTaskData.title,
+          description: editingTaskData.description,
+          last_updated: new Date().toISOString()
+        }).match({ checklist_id: cl.id, task_id: editingTaskId });
+      }
+    } catch (err) {
+      console.error("Erro ao salvar edição no Supabase:", err);
+    }
+
     setEditingTaskId(null);
   };
 

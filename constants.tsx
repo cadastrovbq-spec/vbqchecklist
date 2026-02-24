@@ -1,5 +1,6 @@
-
 import { Sector, ChecklistType, TaskStatus } from './types';
+
+export const getInitialSectors = (): Sector[] => JSON.parse(JSON.stringify(INITIAL_SECTORS));
 
 export const INITIAL_SECTORS: Sector[] = [
   {
