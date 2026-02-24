@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || 'AI_KEY_NOT_SET' });
 
 export async function verifyTaskPhoto(taskTitle: string, taskDescription: string, base64Image: string) {
   try {
