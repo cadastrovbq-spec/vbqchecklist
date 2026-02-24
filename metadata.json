@@ -1,0 +1,7 @@
+{
+  "name": "VBQCHECKLIST",
+  "description": "A professional sector-based opening and closing checklist application with AI-powered photo verification.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
