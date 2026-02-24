@@ -585,14 +585,14 @@ const App: React.FC = () => {
         <div className="flex justify-between items-center" style={{ marginBottom: 24, position: 'relative' }}>
           <div className="flex items-center gap-3">
             <div
-              className="flex items-center justify-center"
-              style={{ width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', boxShadow: '0 8px 24px rgba(124,58,237,0.4)' }}
+              className="flex items-center justify-center overflow-hidden"
+              style={{ width: 44, height: 44, borderRadius: 14, background: '#1e1e1e', boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+              <img src="/logo.jpg" alt="VBQ Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <div>
-              <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, letterSpacing: '-0.5px', lineHeight: 1 }}>VBQCHECKLIST</h1>
-              <p style={{ fontSize: 9, color: C.textFaint, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 3 }}>Gestão Operacional</p>
+              <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, letterSpacing: '-0.5px', lineHeight: 1 }}>VBQ</h1>
+              <p style={{ fontSize: 9, color: C.textFaint, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 3 }}>Samambaia</p>
             </div>
           </div>
           <button
