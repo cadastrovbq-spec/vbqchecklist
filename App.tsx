@@ -83,7 +83,7 @@ const DarkTextarea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement>> 
 /* ════════════════ APP ════════════════ */
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'home' | 'reports' | 'settings'>('home');
-  const [currentDate, setCurrentDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [currentDate, setCurrentDate] = useState(() => new Date().toLocaleDateString('en-CA'));
   const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<ChecklistType>(ChecklistType.OPENING);
   const [dailyHistory, setDailyHistory] = useState<DailyData>({});

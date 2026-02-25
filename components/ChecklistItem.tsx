@@ -11,6 +11,52 @@ interface ChecklistItemProps {
 const ChecklistItem: React.FC<ChecklistItemProps> = ({ task, onUpdate }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(document.createElement('canvas'));
+
+  const compressImage = (url: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = url;
+      img.onload = () => {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject("Could not get canvas context");
+          return;
+        }
+
+        // Redimensionar para no máximo 800px preservando proporção
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Converter para JPEG com qualidade 0.6
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+        console.log(`[Image] Original Dimensions: ${img.width}x${img.height}`);
+        console.log(`[Image] Compressed Dimensions: ${width}x${height}`);
+        console.log(`[Image] Compressed Size: ${Math.round(compressedBase64.length / 1024)} KB`);
+        resolve(compressedBase64);
+      };
+      img.onerror = (err) => reject(err);
+    });
+  };
 
   const handleManualCheck = () => {
     onUpdate({ ...task, status: task.status === TaskStatus.COMPLETED ? TaskStatus.PENDING : TaskStatus.COMPLETED });
@@ -19,22 +65,35 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ task, onUpdate }) => {
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    console.log(`[Upload] File selected: ${file.name} (${Math.round(file.size / 1024)} KB)`);
+
     setIsVerifying(true);
     onUpdate({ ...task, status: TaskStatus.VERIFYING });
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64 = reader.result as string;
-      const verification = await verifyTaskPhoto(task.title, task.description, base64);
+
+    const objectUrl = URL.createObjectURL(file);
+
+    try {
+      const compressedBase64 = await compressImage(objectUrl);
+      URL.revokeObjectURL(objectUrl);
+
+      const verification = await verifyTaskPhoto(task.title, task.description, compressedBase64);
+
       onUpdate({
         ...task,
         status: verification.approved ? TaskStatus.COMPLETED : TaskStatus.FAILED,
-        photoUrl: base64,
+        photoUrl: compressedBase64,
         verificationMessage: verification.feedback,
         lastUpdated: Date.now()
       });
+    } catch (err) {
+      console.error("[Upload] Error processing image:", err);
+      alert("Erro ao processar imagem. Tente novamente com uma foto menor ou em um ambiente com melhor conexão.");
+      onUpdate({ ...task, status: TaskStatus.PENDING });
+    } finally {
       setIsVerifying(false);
-    };
-    reader.readAsDataURL(file);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const isDone = task.status === TaskStatus.COMPLETED;
