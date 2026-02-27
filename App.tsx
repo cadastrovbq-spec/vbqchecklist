@@ -267,7 +267,7 @@ const App: React.FC = () => {
           .select('*')
           .eq('date', currentDate)
           .eq('sector_id', sectorId)
-          .eq('type', activeType)
+          .eq('type', type) // FIXED: used type instead of activeType
           .maybeSingle();
 
         if (findErr) throw findErr;
@@ -291,8 +291,10 @@ const App: React.FC = () => {
       }
     } catch (e: any) {
       console.error("Erro ao salvar tarefa:", e);
-      addLog(`❌ Erro: ${e.message}`);
-      setLoadError(`Falha ao salvar: ${e.message}`);
+      const errorMsg = e.message || "Erro desconhecido";
+      const detail = e.details || "";
+      addLog(`❌ Erro: ${errorMsg}`);
+      setLoadError(`Falha ao salvar: ${errorMsg} ${detail}`);
     } finally {
       setIsSaving(false);
     }
