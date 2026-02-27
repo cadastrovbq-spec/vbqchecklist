@@ -162,9 +162,10 @@ const App: React.FC = () => {
     else setLoading(true);
     setLoadError(null);
     try {
-      console.log("Iniciando carregamento de dados...");
+      addLog("🔍 Conectando ao Banco...");
       const { data: dbSectors, error: sectorError } = await supabase.from('sectors').select('*');
       if (sectorError) throw sectorError;
+      addLog(`✅ Setores: ${dbSectors?.length || 0}`);
 
       let currentTemplate = getInitialSectors();
       if (Array.isArray(dbSectors)) {
@@ -180,8 +181,10 @@ const App: React.FC = () => {
       }
       setBaseSectors(currentTemplate);
 
+      addLog("📖 Carregando Checklists...");
       const { data: dbChecklists, error: checklistError } = await supabase.from('checklists').select('*, tasks:checklist_tasks(*)');
       if (checklistError) throw checklistError;
+      addLog(`✅ Relatos: ${dbChecklists?.length || 0}`);
 
       if (Array.isArray(dbChecklists)) {
         const history: DailyData = {};
@@ -212,9 +215,12 @@ const App: React.FC = () => {
         });
         setDailyHistory(history);
       }
+      addLog("🚀 Sincronizado!");
     } catch (err: any) {
       console.error("Erro no carregamento inicial:", err);
-      setLoadError(err.message || "Erro desconhecido ao conectar com o banco de dados.");
+      const msg = err.message || "Erro de conexão";
+      addLog(`❌ Erro Load: ${msg}`);
+      setLoadError(msg);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -239,8 +245,16 @@ const App: React.FC = () => {
 
       let cl = clArr?.[0];
       if (!cl) {
-        // Fallback: Tenta buscar se o select do upsert falhou
-        const { data: existing } = await supabase.from('checklists').select('*').match({ date: currentDate, sector_id: sectorId, type }).single();
+        // Fallback: Busca via select padrão
+        const { data: existing, error: findErr } = await supabase
+          .from('checklists')
+          .select('*')
+          .eq('date', currentDate)
+          .eq('sector_id', sectorId)
+          .eq('type', activeType)
+          .maybeSingle();
+
+        if (findErr) throw findErr;
         cl = existing;
       }
 
