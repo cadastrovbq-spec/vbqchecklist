@@ -7,24 +7,28 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const mockResponse = { data: [], error: null };
 const mockSingleResponse = { data: null, error: null };
 
+const createMockChain = (responseData: any) => {
+    const chain = Promise.resolve(responseData) as any;
+    const methods = ['select', 'insert', 'upsert', 'update', 'delete', 'eq', 'match', 'single', 'maybeSingle', 'order', 'limit', 'range'];
+
+    methods.forEach(method => {
+        chain[method] = () => method === 'single' || method === 'maybeSingle'
+            ? createMockChain(mockSingleResponse)
+            : createMockChain(responseData);
+    });
+
+    return chain;
+};
+
 export const supabase = (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http'))
     ? createClient(supabaseUrl, supabaseAnonKey)
     : {
         from: () => ({
-            select: () => Object.assign(Promise.resolve(mockResponse), {
-                single: () => Promise.resolve(mockSingleResponse),
-                match: () => Object.assign(Promise.resolve(mockResponse), {
-                    select: () => Promise.resolve(mockResponse)
-                })
-            }),
-            upsert: () => Object.assign(Promise.resolve(mockResponse), {
-                select: () => ({
-                    single: () => Promise.resolve(mockSingleResponse)
-                })
-            }),
-            insert: () => Promise.resolve(mockResponse),
-            update: () => ({ match: () => Promise.resolve(mockResponse) }),
-            delete: () => ({ eq: () => Promise.resolve(mockResponse) })
+            select: () => createMockChain(mockResponse),
+            upsert: () => createMockChain(mockResponse),
+            insert: () => createMockChain(mockResponse),
+            update: () => createMockChain(mockResponse),
+            delete: () => createMockChain(mockResponse),
         })
     } as any;
 
