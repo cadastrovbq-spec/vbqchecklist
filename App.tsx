@@ -229,6 +229,22 @@ const App: React.FC = () => {
 
   useEffect(() => {
     loadData();
+
+    // Configurar Realtime
+    const channel = supabase.channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checklists' }, () => {
+        addLog("🔔 Atualização: Checklist");
+        loadData(true);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist_tasks' }, () => {
+        addLog("🔔 Atualização: Tarefa");
+        loadData(true);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const updateHistory = (newSectors: Sector[]) => setDailyHistory(prev => ({ ...prev, [currentDate]: newSectors }));
@@ -343,7 +359,21 @@ const App: React.FC = () => {
     Object.entries(dailyHistory).forEach(([date, sl]) => {
       sl.forEach(s => {
         [ChecklistType.OPENING, ChecklistType.CLOSING].forEach(type => {
-          if (s.finalizedAt[type]) reports.push({ date, sectorId: s.id, sectorName: s.name, sectorIcon: s.icon, type, employeeName: s.employeeName[type] || '', observations: s.observations[type] || '', finalizedAt: s.finalizedAt[type]!, tasks: s.tasks[type] });
+          // Mostra relatórios finalizados OU em progresso se houver tarefas marcadas
+          const hasTasks = s.tasks[type].some(t => t.status !== TaskStatus.PENDING);
+          if (s.finalizedAt[type] || hasTasks) {
+            reports.push({
+              date,
+              sectorId: s.id,
+              sectorName: s.name,
+              sectorIcon: s.icon,
+              type,
+              employeeName: s.employeeName[type] || (s.finalizedAt[type] ? '' : 'Em andamento...'),
+              observations: s.observations[type] || '',
+              finalizedAt: s.finalizedAt[type] || new Date(date).getTime(),
+              tasks: s.tasks[type]
+            });
+          }
         });
       });
     });
