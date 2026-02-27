@@ -3,6 +3,8 @@ import React, { useState, useRef } from 'react';
 import { ChecklistTask, TaskStatus } from '../types';
 import { verifyTaskPhoto } from '../services/geminiService';
 
+import { supabase } from '../supabaseClient';
+
 interface ChecklistItemProps {
   task: ChecklistTask;
   onUpdate: (updatedTask: ChecklistTask) => void;
@@ -89,18 +91,51 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ task, onUpdate }) => {
       const compressedBase64 = await compressImage(objectUrl);
       URL.revokeObjectURL(objectUrl);
 
+      // 1. Verificar com Gemini usando base64 (mais rápido para análise)
       const verification = await verifyTaskPhoto(task.title, task.description, compressedBase64);
+
+      // 2. Upload para Supabase Storage (se aprovado ou se quiser manter a foto de qualquer forma)
+      let photoUrl = compressedBase64; // Fallback
+      
+      try {
+        const fileExt = 'jpg';
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `tasks/${fileName}`;
+
+        // Converter base64 comprimido para Blob para upload
+        const res = await fetch(compressedBase64);
+        const blob = await res.blob();
+
+        const { error: uploadError } = await supabase.storage
+          .from('checklist-photos')
+          .upload(filePath, blob, {
+            contentType: 'image/jpeg',
+            upsert: true
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('checklist-photos')
+          .getPublicUrl(filePath);
+        
+        photoUrl = publicUrl;
+        console.log(`[Upload] Success! Public URL: ${photoUrl}`);
+      } catch (storageErr) {
+        console.error("[Upload] Supabase Storage Error:", storageErr);
+        // Mantém o base64 se falhar o upload para o storage, para não perder a foto
+      }
 
       onUpdate({
         ...task,
         status: verification.approved ? TaskStatus.COMPLETED : TaskStatus.FAILED,
-        photoUrl: compressedBase64,
+        photoUrl: photoUrl,
         verificationMessage: verification.feedback,
         lastUpdated: Date.now()
       });
     } catch (err) {
       console.error("[Upload] Error processing image:", err);
-      alert("Erro ao processar imagem. Tente novamente com uma foto menor ou em um ambiente com melhor conexão.");
+      alert("Erro ao processar imagem. Verifique sua conexão.");
       onUpdate({ ...task, status: TaskStatus.PENDING });
     } finally {
       setIsVerifying(false);

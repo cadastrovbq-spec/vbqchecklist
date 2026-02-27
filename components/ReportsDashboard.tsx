@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
 import { ChecklistType, TaskStatus, ReportEntry, ChecklistTask } from '../types';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface ReportsDashboardProps {
   reports: ReportEntry[];
@@ -47,6 +49,43 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ reports, onReopenRe
       onReopenReport(report.date, report.sectorId, report.type);
       setSelectedReport(null);
     }
+  };
+
+  const downloadReportPDF = (report: ReportEntry) => {
+    const doc = new jsPDF();
+    const title = `Relatório de Checklist - ${report.sectorName}`;
+    const dateStr = new Date(report.date).toLocaleDateString('pt-BR');
+    const typeStr = report.type === ChecklistType.OPENING ? 'Abertura' : 'Fechamento';
+
+    doc.setFontSize(20);
+    doc.text(title, 20, 20);
+
+    doc.setFontSize(12);
+    doc.text(`Data: ${dateStr}`, 20, 30);
+    doc.text(`Tipo: ${typeStr}`, 20, 37);
+    doc.text(`Responsável: ${report.employeeName}`, 20, 44);
+
+    if (report.observations) {
+      doc.setTextColor(220, 0, 0);
+      doc.text(`Observações: ${report.observations}`, 20, 54);
+      doc.setTextColor(0, 0, 0);
+    }
+
+    const tableData = report.tasks.map(t => [
+      t.title,
+      t.status === TaskStatus.COMPLETED ? 'OK' : 'PENDENTE/FALHOU',
+      t.verificationMessage || '-'
+    ]);
+
+    autoTable(doc, {
+      startY: 65,
+      head: [['Tarefa', 'Status', 'Feedback IA']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: '#F1F5F9', textColor: '#0F172A', fontStyle: 'bold' }
+    });
+
+    doc.save(`checklist-${report.sectorId}-${report.date}-${report.type}.pdf`);
   };
 
   return (
@@ -180,12 +219,21 @@ const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ reports, onReopenRe
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setSelectedReport(null)}
-              className="w-14 h-14 bg-white/20 hover:bg-white/30 rounded-2xl flex items-center justify-center text-white transition-all active:scale-90"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => downloadReportPDF(selectedReport)}
+                className="w-14 h-14 bg-white/20 hover:bg-white/30 rounded-2xl flex items-center justify-center text-white transition-all active:scale-90"
+                title="Baixar PDF"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+              </button>
+              <button
+                onClick={() => setSelectedReport(null)}
+                className="w-14 h-14 bg-white/20 hover:bg-white/30 rounded-2xl flex items-center justify-center text-white transition-all active:scale-90"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 bg-white rounded-[40px] p-8 overflow-y-auto space-y-6 shadow-2xl border-t-8 border-[#8B5CF6]">
