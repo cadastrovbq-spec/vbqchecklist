@@ -188,10 +188,19 @@ const App: React.FC = () => {
             s.employeeName[type] = cl.employee_name || '';
             s.observations[type] = cl.observations || '';
             s.finalizedAt[type] = cl.finalized_at ? new Date(cl.finalized_at).getTime() : undefined;
-            if (Array.isArray(cl.tasks)) s.tasks[type] = cl.tasks.map((t: any) => ({
-              id: t.task_id, title: t.title, description: t.description,
-              status: t.status, photoUrl: t.photo_url, verificationMessage: t.verification_message,
-            }));
+            if (Array.isArray(cl.tasks)) {
+              cl.tasks.forEach((t: any) => {
+                const taskIdx = s.tasks[type].findIndex((templ: any) => templ.id === t.task_id);
+                if (taskIdx !== -1) {
+                  s.tasks[type][taskIdx] = {
+                    ...s.tasks[type][taskIdx],
+                    status: t.status,
+                    photoUrl: t.photo_url,
+                    verificationMessage: t.verification_message,
+                  };
+                }
+              });
+            }
           }
         });
         setDailyHistory(history);
@@ -214,9 +223,24 @@ const App: React.FC = () => {
   const handleUpdateTask = async (sectorId: string, type: ChecklistType, updatedTask: ChecklistTask) => {
     updateHistory(sectors.map(s => s.id !== sectorId ? s : { ...s, tasks: { ...s.tasks, [type]: s.tasks[type].map(t => t.id === updatedTask.id ? updatedTask : t) } }));
     try {
-      const { data: cl } = await supabase.from('checklists').upsert({ date: currentDate, sector_id: sectorId, type }, { onConflict: 'date,sector_id,type' }).select().single();
-      if (cl) await supabase.from('checklist_tasks').upsert({ checklist_id: cl.id, task_id: updatedTask.id, title: updatedTask.title, status: updatedTask.status, photo_url: updatedTask.photoUrl, verification_message: updatedTask.verificationMessage, last_updated: new Date().toISOString() }, { onConflict: 'checklist_id,task_id' });
-    } catch (e) { console.error(e); }
+      const { data: cl, error: clErr } = await supabase.from('checklists').upsert({ date: currentDate, sector_id: sectorId, type }, { onConflict: 'date,sector_id,type' }).select().single();
+      if (clErr) throw clErr;
+      if (cl) {
+        const { error: tErr } = await supabase.from('checklist_tasks').upsert({
+          checklist_id: cl.id,
+          task_id: updatedTask.id,
+          title: updatedTask.title,
+          status: updatedTask.status,
+          photo_url: updatedTask.photoUrl,
+          verification_message: updatedTask.verificationMessage,
+          last_updated: new Date().toISOString()
+        }, { onConflict: 'checklist_id,task_id' });
+        if (tErr) throw tErr;
+      }
+    } catch (e: any) {
+      console.error("Erro ao salvar tarefa:", e);
+      setLoadError(`Falha ao salvar: ${e.message}`);
+    }
   };
 
   const handleAddSector = async () => {
