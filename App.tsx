@@ -59,6 +59,7 @@ const App: React.FC = () => {
   const [activeType, setActiveType] = useState<ChecklistType>(ChecklistType.OPENING);
   const [dailyHistory, setDailyHistory] = useState<DailyData>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [errorName, setErrorName] = useState(false);
 
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -151,9 +152,12 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const { data: dbSectors } = await supabase.from('sectors').select('*');
+        console.log("Iniciando carregamento de dados...");
+        const { data: dbSectors, error: sectorError } = await supabase.from('sectors').select('*');
+        if (sectorError) throw sectorError;
+
         let currentTemplate = getInitialSectors();
-        if (dbSectors) {
+        if (Array.isArray(dbSectors)) {
           dbSectors.forEach((ds: any) => {
             if (!currentTemplate.find(s => s.id === ds.id)) {
               currentTemplate.push({
@@ -166,8 +170,10 @@ const App: React.FC = () => {
         }
         setBaseSectors(currentTemplate);
 
-        const { data: dbChecklists } = await supabase.from('checklists').select('*, tasks:checklist_tasks(*)');
-        if (dbChecklists) {
+        const { data: dbChecklists, error: checklistError } = await supabase.from('checklists').select('*, tasks:checklist_tasks(*)');
+        if (checklistError) throw checklistError;
+
+        if (Array.isArray(dbChecklists)) {
           const history: DailyData = {};
           dbChecklists.forEach(cl => {
             const date = cl.date;
@@ -179,7 +185,7 @@ const App: React.FC = () => {
               s.employeeName[type] = cl.employee_name || '';
               s.observations[type] = cl.observations || '';
               s.finalizedAt[type] = cl.finalized_at ? new Date(cl.finalized_at).getTime() : undefined;
-              if (cl.tasks) s.tasks[type] = cl.tasks.map((t: any) => ({
+              if (Array.isArray(cl.tasks)) s.tasks[type] = cl.tasks.map((t: any) => ({
                 id: t.task_id, title: t.title, description: t.description,
                 status: t.status, photoUrl: t.photo_url, verificationMessage: t.verification_message,
               }));
@@ -187,8 +193,10 @@ const App: React.FC = () => {
           });
           setDailyHistory(history);
         }
+      } catch (err: any) {
+        console.error("Erro no carregamento inicial:", err);
+        setLoadError(err.message || "Erro desconhecido ao conectar com o banco de dados.");
       } finally {
-        setLoading(setLoading as any); // Bug bypass
         setLoading(false);
       }
     };
@@ -322,6 +330,13 @@ const App: React.FC = () => {
             <motion.div key="loader" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 gap-4">
               <div className="w-10 h-10 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
               <p className="text-xs font-black text-violet-600 animate-pulse tracking-widest">SINCRONIZANDO...</p>
+              {loadError && (
+                <div className="mt-4 p-4 bg-red-50 border-2 border-red-100 rounded-2xl text-center">
+                  <p className="text-red-500 font-bold text-xs uppercase tracking-widest mb-1">Erro de Conexão</p>
+                  <p className="text-red-400 text-[10px] font-medium leading-tight">{loadError}</p>
+                  <p className="text-slate-400 text-[9px] mt-2">Verifique as variáveis de ambiente na Vercel.</p>
+                </div>
+              )}
             </motion.div>
           ) : currentView === 'home' ? (
             <motion.div key="home" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-6">

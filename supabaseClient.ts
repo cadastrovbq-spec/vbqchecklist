@@ -4,15 +4,27 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 // Evita que o app quebre se as chaves não estiverem configuradas
+const mockResponse = { data: [], error: null };
+const mockSingleResponse = { data: null, error: null };
+
 export const supabase = (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http'))
     ? createClient(supabaseUrl, supabaseAnonKey)
     : {
         from: () => ({
-            select: () => ({ single: () => Promise.resolve({ data: null, error: null }), match: () => Promise.resolve({ data: null, error: null }) }),
-            upsert: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: null }) }) }),
-            insert: () => Promise.resolve({ data: null, error: null }),
-            update: () => ({ match: () => Promise.resolve({ data: null, error: null }) }),
-            delete: () => ({ eq: () => Promise.resolve({ data: null, error: null }) })
+            select: () => Object.assign(Promise.resolve(mockResponse), {
+                single: () => Promise.resolve(mockSingleResponse),
+                match: () => Object.assign(Promise.resolve(mockResponse), {
+                    select: () => Promise.resolve(mockResponse)
+                })
+            }),
+            upsert: () => Object.assign(Promise.resolve(mockResponse), {
+                select: () => ({
+                    single: () => Promise.resolve(mockSingleResponse)
+                })
+            }),
+            insert: () => Promise.resolve(mockResponse),
+            update: () => ({ match: () => Promise.resolve(mockResponse) }),
+            delete: () => ({ eq: () => Promise.resolve(mockResponse) })
         })
     } as any;
 
