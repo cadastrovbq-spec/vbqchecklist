@@ -60,8 +60,15 @@ const App: React.FC = () => {
   const [dailyHistory, setDailyHistory] = useState<DailyData>({});
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const [errorName, setErrorName] = useState(false);
+
+  const addLog = (msg: string) => {
+    console.log(msg);
+    setDebugLogs(prev => [msg, ...prev].slice(0, 10));
+  };
 
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [isAddingSector, setIsAddingSector] = useState(false);
@@ -222,9 +229,21 @@ const App: React.FC = () => {
 
   const handleUpdateTask = async (sectorId: string, type: ChecklistType, updatedTask: ChecklistTask) => {
     updateHistory(sectors.map(s => s.id !== sectorId ? s : { ...s, tasks: { ...s.tasks, [type]: s.tasks[type].map(t => t.id === updatedTask.id ? updatedTask : t) } }));
+    setIsSaving(true);
     try {
-      const { data: cl, error: clErr } = await supabase.from('checklists').upsert({ date: currentDate, sector_id: sectorId, type }, { onConflict: 'date,sector_id,type' }).select().single();
+      addLog(`Salvando ${updatedTask.title}...`);
+      // 1. Upsert do checklist pai
+      const { data: clArr, error: clErr } = await supabase.from('checklists').upsert({ date: currentDate, sector_id: sectorId, type }, { onConflict: 'date,sector_id,type' }).select();
+
       if (clErr) throw clErr;
+
+      let cl = clArr?.[0];
+      if (!cl) {
+        // Fallback: Tenta buscar se o select do upsert falhou
+        const { data: existing } = await supabase.from('checklists').select('*').match({ date: currentDate, sector_id: sectorId, type }).single();
+        cl = existing;
+      }
+
       if (cl) {
         const { error: tErr } = await supabase.from('checklist_tasks').upsert({
           checklist_id: cl.id,
@@ -236,10 +255,16 @@ const App: React.FC = () => {
           last_updated: new Date().toISOString()
         }, { onConflict: 'checklist_id,task_id' });
         if (tErr) throw tErr;
+        addLog("✅ Salvo com sucesso!");
+      } else {
+        throw new Error("Não foi possível obter o ID do checklist.");
       }
     } catch (e: any) {
       console.error("Erro ao salvar tarefa:", e);
+      addLog(`❌ Erro: ${e.message}`);
       setLoadError(`Falha ao salvar: ${e.message}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -346,19 +371,32 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mb-4 px-1">
+        <div className="flex items-center gap-2 mb-4 px-1 flex-wrap">
           {import.meta.env.VITE_SUPABASE_URL ? (
             <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase ${loadError ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600'}`}>
               <div className={`w-2 h-2 rounded-full ${loadError ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`} />
-              {loadError ? 'Erro de Conexão' : 'Cloud Sync Ativo'}
+              {loadError ? 'Erro de Sincronia' : 'Cloud Sync Ativo'}
             </div>
           ) : (
             <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 rounded-full text-[9px] font-black tracking-widest uppercase text-amber-600">
               <div className="w-2 h-2 rounded-full bg-amber-500" />
-              Modo Local (Sem Nuvem)
+              Modo Local (Offline)
+            </div>
+          )}
+          {isSaving && (
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-violet-50 rounded-full text-[9px] font-black tracking-widest uppercase text-violet-600 animate-pulse">
+              <div className="w-2 h-2 rounded-full bg-violet-500" />
+              Salvando...
             </div>
           )}
         </div>
+
+        {debugLogs.length > 0 && (
+          <div className="mb-4 p-3 bg-slate-900 rounded-xl font-mono text-[8px] text-emerald-400 overflow-hidden">
+            <p className="border-b border-white/10 mb-1 pb-1 opacity-50 uppercase tracking-widest">Debug Console</p>
+            {debugLogs.map((log, i) => <div key={i} className={log.includes('❌') ? 'text-red-400' : ''}>{log}</div>)}
+          </div>
+        )}
 
         {currentView === 'home' && (
           <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-950 p-2 rounded-2xl border-2 border-slate-100 dark:border-slate-800">
