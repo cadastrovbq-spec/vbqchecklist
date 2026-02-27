@@ -391,7 +391,7 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className={darkMode ? 'dark' : ''} style={{ maxWidth: 600, margin: '0 auto', minHeight: '100vh', background: darkMode ? C.bgDark : C.bg, fontFamily: "'Space Grotesk', sans-serif" }}>
+    <div className={darkMode ? 'dark' : ''} style={{ maxWidth: 1000, margin: '0 auto', minHeight: '100vh', background: darkMode ? C.bgDark : C.bg, fontFamily: "'Space Grotesk', sans-serif" }}>
       <header className="sticky top-0 z-50 p-6 bg-white dark:bg-slate-900 border-b-2 border-slate-100 dark:border-slate-800">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
@@ -561,7 +561,7 @@ const App: React.FC = () => {
         </AnimatePresence>
       </main>
 
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-48px)] max-w-[552px] h-[84px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-[32px] border-2 border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-around z-[100]">
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-48px)] max-w-[952px] h-[84px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-[32px] border-2 border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-around z-[100]">
         {[
           { k: 'home', i: <Home />, l: 'Início', p: false },
           { k: 'reports', i: <ClipboardList />, l: 'Histórico', p: true },
