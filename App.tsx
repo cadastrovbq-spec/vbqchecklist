@@ -59,6 +59,7 @@ const App: React.FC = () => {
   const [activeType, setActiveType] = useState<ChecklistType>(ChecklistType.OPENING);
   const [dailyHistory, setDailyHistory] = useState<DailyData>({});
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [errorName, setErrorName] = useState(false);
 
@@ -149,57 +150,62 @@ const App: React.FC = () => {
 
   const sectors = useMemo(() => dailyHistory[currentDate] || baseSectors.map(s => ({ ...s })), [dailyHistory, currentDate, baseSectors]);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        console.log("Iniciando carregamento de dados...");
-        const { data: dbSectors, error: sectorError } = await supabase.from('sectors').select('*');
-        if (sectorError) throw sectorError;
+  const loadData = async (isManual = false) => {
+    if (isManual) setIsRefreshing(true);
+    else setLoading(true);
+    setLoadError(null);
+    try {
+      console.log("Iniciando carregamento de dados...");
+      const { data: dbSectors, error: sectorError } = await supabase.from('sectors').select('*');
+      if (sectorError) throw sectorError;
 
-        let currentTemplate = getInitialSectors();
-        if (Array.isArray(dbSectors)) {
-          dbSectors.forEach((ds: any) => {
-            if (!currentTemplate.find(s => s.id === ds.id)) {
-              currentTemplate.push({
-                id: ds.id, name: ds.name, icon: ds.icon,
-                employeeName: {}, observations: {}, finalizedAt: {},
-                tasks: { [ChecklistType.OPENING]: [], [ChecklistType.CLOSING]: [] }
-              });
-            }
-          });
-        }
-        setBaseSectors(currentTemplate);
-
-        const { data: dbChecklists, error: checklistError } = await supabase.from('checklists').select('*, tasks:checklist_tasks(*)');
-        if (checklistError) throw checklistError;
-
-        if (Array.isArray(dbChecklists)) {
-          const history: DailyData = {};
-          dbChecklists.forEach(cl => {
-            const date = cl.date;
-            if (!history[date]) history[date] = currentTemplate.map(s => ({ ...s, employeeName: { ...s.employeeName }, observations: { ...s.observations }, finalizedAt: { ...s.finalizedAt }, tasks: { [ChecklistType.OPENING]: [...s.tasks[ChecklistType.OPENING]], [ChecklistType.CLOSING]: [...s.tasks[ChecklistType.CLOSING]] } }));
-            const sIdx = history[date].findIndex(s => s.id === cl.sector_id);
-            if (sIdx !== -1) {
-              const s = history[date][sIdx];
-              const type = cl.type as ChecklistType;
-              s.employeeName[type] = cl.employee_name || '';
-              s.observations[type] = cl.observations || '';
-              s.finalizedAt[type] = cl.finalized_at ? new Date(cl.finalized_at).getTime() : undefined;
-              if (Array.isArray(cl.tasks)) s.tasks[type] = cl.tasks.map((t: any) => ({
-                id: t.task_id, title: t.title, description: t.description,
-                status: t.status, photoUrl: t.photo_url, verificationMessage: t.verification_message,
-              }));
-            }
-          });
-          setDailyHistory(history);
-        }
-      } catch (err: any) {
-        console.error("Erro no carregamento inicial:", err);
-        setLoadError(err.message || "Erro desconhecido ao conectar com o banco de dados.");
-      } finally {
-        setLoading(false);
+      let currentTemplate = getInitialSectors();
+      if (Array.isArray(dbSectors)) {
+        dbSectors.forEach((ds: any) => {
+          if (!currentTemplate.find(s => s.id === ds.id)) {
+            currentTemplate.push({
+              id: ds.id, name: ds.name, icon: ds.icon,
+              employeeName: {}, observations: {}, finalizedAt: {},
+              tasks: { [ChecklistType.OPENING]: [], [ChecklistType.CLOSING]: [] }
+            });
+          }
+        });
       }
-    };
+      setBaseSectors(currentTemplate);
+
+      const { data: dbChecklists, error: checklistError } = await supabase.from('checklists').select('*, tasks:checklist_tasks(*)');
+      if (checklistError) throw checklistError;
+
+      if (Array.isArray(dbChecklists)) {
+        const history: DailyData = {};
+        dbChecklists.forEach(cl => {
+          const date = cl.date;
+          if (!history[date]) history[date] = currentTemplate.map(s => ({ ...s, employeeName: { ...s.employeeName }, observations: { ...s.observations }, finalizedAt: { ...s.finalizedAt }, tasks: { [ChecklistType.OPENING]: [...s.tasks[ChecklistType.OPENING]], [ChecklistType.CLOSING]: [...s.tasks[ChecklistType.CLOSING]] } }));
+          const sIdx = history[date].findIndex(s => s.id === cl.sector_id);
+          if (sIdx !== -1) {
+            const s = history[date][sIdx];
+            const type = cl.type as ChecklistType;
+            s.employeeName[type] = cl.employee_name || '';
+            s.observations[type] = cl.observations || '';
+            s.finalizedAt[type] = cl.finalized_at ? new Date(cl.finalized_at).getTime() : undefined;
+            if (Array.isArray(cl.tasks)) s.tasks[type] = cl.tasks.map((t: any) => ({
+              id: t.task_id, title: t.title, description: t.description,
+              status: t.status, photoUrl: t.photo_url, verificationMessage: t.verification_message,
+            }));
+          }
+        });
+        setDailyHistory(history);
+      }
+    } catch (err: any) {
+      console.error("Erro no carregamento inicial:", err);
+      setLoadError(err.message || "Erro desconhecido ao conectar com o banco de dados.");
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
     loadData();
   }, []);
 
@@ -303,13 +309,31 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => loadData(true)}
+              disabled={isRefreshing}
+              className={`w-11 h-11 rounded-2xl bg-white dark:bg-slate-800 flex items-center justify-center text-violet-500 shadow-sm border-2 border-slate-100 dark:border-slate-700 transition-all ${isRefreshing ? 'animate-spin opacity-50' : 'active:scale-90 hover:border-violet-200'}`}
+            >
+              <ClipboardList size={20} />
+            </button>
             <button onClick={() => setDarkMode(!darkMode)} className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-violet-500 dark:text-yellow-400 transition-transform active:scale-90 shadow-sm border-2 border-transparent dark:border-slate-700">
               {darkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
-            <button className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 transition-transform active:scale-90 shadow-sm">
-              <User size={20} />
-            </button>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 mb-4 px-1">
+          {import.meta.env.VITE_SUPABASE_URL ? (
+            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase ${loadError ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600'}`}>
+              <div className={`w-2 h-2 rounded-full ${loadError ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`} />
+              {loadError ? 'Erro de Conexão' : 'Cloud Sync Ativo'}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 rounded-full text-[9px] font-black tracking-widest uppercase text-amber-600">
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              Modo Local (Sem Nuvem)
+            </div>
+          )}
         </div>
 
         {currentView === 'home' && (
