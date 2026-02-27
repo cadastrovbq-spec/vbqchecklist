@@ -168,7 +168,10 @@ const App: React.FC = () => {
       addLog(`✅ Setores: ${dbSectors?.length || 0}`);
 
       let currentTemplate = getInitialSectors();
+      const missingInDb: any[] = [];
+
       if (Array.isArray(dbSectors)) {
+        // 1. Adicionar setores do DB que não estão no template
         dbSectors.forEach((ds: any) => {
           if (!currentTemplate.find(s => s.id === ds.id)) {
             currentTemplate.push({
@@ -178,7 +181,27 @@ const App: React.FC = () => {
             });
           }
         });
+
+        // 2. Identificar setores no template que não estão no DB
+        currentTemplate.forEach(ts => {
+          if (!dbSectors.find(ds => ds.id === ts.id)) {
+            missingInDb.push({ id: ts.id, name: ts.name, icon: ts.icon });
+          }
+        });
       }
+
+      // 3. Registrar automaticamente setores faltantes para evitar erros de FK
+      if (missingInDb.length > 0) {
+        addLog(`🔧 Registrando ${missingInDb.length} setores...`);
+        const { error: insErr } = await supabase.from('sectors').upsert(missingInDb, { onConflict: 'id' });
+        if (insErr) {
+          console.error("Erro ao registrar setores:", insErr);
+          addLog("❌ Falha auto-registro");
+        } else {
+          addLog("✅ Setores registrados!");
+        }
+      }
+
       setBaseSectors(currentTemplate);
 
       addLog("📖 Carregando Checklists...");
