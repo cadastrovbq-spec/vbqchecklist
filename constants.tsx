@@ -385,7 +385,7 @@ export const INITIAL_SECTORS: Sector[] = [
         { id: 'pz-c-6', title: 'Verificar limpeza e etiquetagem', description: 'Conferir se todos os produtos estão limpos e etiquetados corretamente.', status: TaskStatus.PENDING },
         { id: 'pz-c-7', title: 'Rotatividade de produtos (PVPS)', description: 'Verificar e aplicar a rotatividade — Primeiro que Vence, Primeiro que Sai.', status: TaskStatus.PENDING },
         // ── EQUIPAMENTOS EM GERAL ──
-        { id: 'pz-c-8', title: 'Bancada refrigerada da Pizzaria — limpa e ligada?', description: 'Confirmar que a bancada refrigerada está limpa e permanecerá ligada.', status: TaskStatus.PENDING },
+        { id: 'pz-c-8', title: 'Bancada refrigerada da Pizzaria — limpa e ligada?', description: 'Confirmar que la bancada refrigerada está limpa e permanecerá ligada.', status: TaskStatus.PENDING },
         { id: 'pz-c-9', title: 'Lixeiras da Pizzaria — limpas e vazias?', description: 'Esvaziar e higienizar todas as lixeiras da área ao final do turno.', status: TaskStatus.PENDING },
         { id: 'pz-c-10', title: 'Coifas e exaustores desligados', description: 'Verificar e desligar todas as coifas e exaustores da Pizzaria.', status: TaskStatus.PENDING },
         { id: 'pz-c-11', title: 'Forno de pizza — limpeza diária', description: 'Realizar a limpeza completa do forno ao final de cada turno.', status: TaskStatus.PENDING },
@@ -402,6 +402,39 @@ export const INITIAL_SECTORS: Sector[] = [
         { id: 'pz-c-21', title: 'O LED do Sushi está desligado?', description: 'Confirmar que a iluminação LED do Sushi foi desligada ao encerrar o serviço.', status: TaskStatus.PENDING },
         { id: 'pz-c-22', title: 'Pedido de hortifruti foi feito?', description: 'Confirmar que o pedido de hortifruti para o próximo dia foi realizado.', status: TaskStatus.PENDING }
       ]
+    }
+  },
+  {
+    id: 'stock',
+    name: 'Estoque',
+    icon: '📦',
+    employeeName: {},
+    observations: {},
+    finalizedAt: {},
+    tasks: {
+      [ChecklistType.OPENING]: [
+        // ── ESTOQUISTA ──
+        { id: 'st-o-1', title: 'Rotatividade de produtos no estoque, geladeiras e camaras frias? (PVPS)', description: 'Verificar e aplicar a rotatividade correta.', status: TaskStatus.PENDING },
+        { id: 'st-o-2', title: 'CORREDOR DO ESTOQUE LIMPO E ORGANIZADO', description: 'Garantir que os corredores estejam livres e limpos.', status: TaskStatus.PENDING },
+        { id: 'st-o-3', title: 'GERAL - Dépositos/estoques limpos e organizados', description: 'Limpeza e organização geral dos espaços de armazenamento.', status: TaskStatus.PENDING },
+        { id: 'st-o-4', title: 'Contar itens porcionados e solicitar complemento de estoque para a pordução?', description: 'Realizar contagem e solicitar reposição se necessário.', status: TaskStatus.PENDING },
+        { id: 'st-o-5', title: 'Romaneios de transferência realizados?', description: 'Verificar se todos os romaneios foram processados.', status: TaskStatus.PENDING },
+        // ── EQUIPAMENTOS EM GERAL ──
+        { id: 'st-o-6', title: 'GELADEIRA DO HORTIFRUTI - LIMPA e ORGANIZADA', description: 'Verificar estado da geladeira de hortifruti.', status: TaskStatus.PENDING },
+        { id: 'st-o-7', title: 'CAMARA 01 - LIMPA e ORGANIZADA', description: 'Limpeza e organização da câmara 01.', status: TaskStatus.PENDING },
+        { id: 'st-o-8', title: 'CAMARA 02 - LIMPA e ORGANIZADA', description: 'Limpeza e organização da câmara 02.', status: TaskStatus.PENDING },
+        { id: 'st-o-9', title: 'CAMARA 03 - LIMPA e ORGANIZADA', description: 'Limpeza e organização da câmara 03.', status: TaskStatus.PENDING },
+        // ── ITENS COMPLEMENTARES ──
+        { id: 'st-o-10', title: 'Fazer pedido de mercearia, bebidas e vinhos na segunda?', description: 'Cronograma de pedidos: Segunda-feira.', status: TaskStatus.PENDING },
+        { id: 'st-o-11', title: 'Enviar ao gestor valor total de compras até o momento, toda segunda?', description: 'Relatório financeiro de compras.', status: TaskStatus.PENDING },
+        { id: 'st-o-12', title: 'Fazer pedido de mercearia e bebidas quinta?', description: 'Cronograma de pedidos: Quinta-feira.', status: TaskStatus.PENDING },
+        { id: 'st-o-13', title: 'Fazer pedido de suco de laranja?', description: 'Verificar estoque de suco de laranja.', status: TaskStatus.PENDING },
+        { id: 'st-o-14', title: 'Verificar e soluciornar faltas para o dia?', description: 'Identificar itens em falta para operação imediata.', status: TaskStatus.PENDING },
+        { id: 'st-o-15', title: 'Freezer de cervejas estão ligados?', description: 'Verificar funcionamento do freezer de cervejas.', status: TaskStatus.PENDING },
+        { id: 'st-o-16', title: 'Lançar notas no grupo?', description: 'Informar notas fiscais no grupo de comunicação.', status: TaskStatus.PENDING },
+        { id: 'st-o-17', title: 'Lançar notas nas planilhas?', description: 'Atualizar planilhas de controle com novas notas.', status: TaskStatus.PENDING }
+      ],
+      [ChecklistType.CLOSING]: []
     }
   }
 ];
